@@ -151,10 +151,10 @@ def receive_packet_drop(
 
 	# recipient_slug: bytes32 = keccak256(concat(convert(_slug, bytes32), convert(msg.sender, bytes32)))
 	# recipient_slug: bytes32 = 0xb5c8bd9430b6cc87a0e2fe110ece6bf527fa4f170a4bc8cd032f768fc5219838
-	slug: bytes32 = Random(0x67c6829506DdF66Ed824Fd1cCC40665588Bc4631).getBlockRandomness(block.number)
+	_recipient_slug: bytes32 = Random(0x67c6829506DdF66Ed824Fd1cCC40665588Bc4631).getBlockRandomness(block.number)
 
 
-	self.packet_drop_recipients[recipient_slug] = PacketDropRecipient({
+	self.packet_drop_recipients[_recipient_slug] = PacketDropRecipient({
 		has_received: True,
 		amount_wei_received: value,
 	})
