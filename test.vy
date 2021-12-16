@@ -14,6 +14,22 @@ interface Random():
 celo_gold_token_erc20_address: constant(address) = 0x6D0081857009Cb79014Df13E34FC49192F66AeE1
 
 
+
+
+@payable
+@external
+def __default__():
+	# log.Payment(msg.value, msg.sender)
+	pass
+
+
+
+@external
+def dumb():
+	send(msg.sender, 10000000000000000)
+
+
+
 # @payable
 @external
 def create_packet_drop(
