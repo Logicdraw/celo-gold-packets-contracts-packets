@@ -24,7 +24,10 @@ struct PacketDrop:
 	number_of_recipients_has_received: int128
 	amount_wei_sent_to_recipients: uint256
 	message: bytes32
-	recipients_txns: bytes32[10]
+	recipients_addresses: address[10]
+	recipients_values: uint256[10]
+	recipients_block_numbers: uint256[10]
+
 	# 
 
 	# recipients: HashMap[address, PacketDropRecipient]
@@ -92,11 +95,11 @@ def __init__():
 @view
 @external
 def get_packet_drop_recipient_txns(
-	pdi: int128,
-) -> bytes32[10]:
+	_pdi: int128,
+) -> PacketDrop:
 	# --
 
-	return self.packet_drops[pdi].recipients_txns
+	return self.packet_drops[_pdi]
 
 
 
@@ -124,7 +127,9 @@ def create_packet_drop(
 		message: _message,
 		number_of_recipients_has_received: 0,
 		amount_wei_sent_to_recipients: 0,
-		recipients_txns: empty(bytes32[10]),
+		recipients_addresses: empty(address[10]),
+		recipients_values: empty(uint256[10]),
+		recipients_block_numbers: empty(uint256[10]),
 	})
 
 
@@ -135,14 +140,32 @@ def create_packet_drop(
 
 
 
+@internal
+def _has_address_recieved_this_packet_drop(
+	_recipients_addresses: address[10],
+	_address: address,
+) -> bool:
+	# --
+	for i in range(10):
+		if _address == _recipients_addresses[i]:
+			return True
+
+	return False
+	
+
+
+
 
 @external
 def receive_packet_drop(
-	pdi: int128,
+	_pdi: int128,
 ) -> bool:
 	# --
 
-	assert self.packet_drops[pdi].number_of_recipients_has_received < self.packet_drops[pdi].number_of_recipients_to_receive, 'No more packets left for you!'
+	assert self.packet_drops[_pdi].number_of_recipients_has_received < self.packet_drops[_pdi].number_of_recipients_to_receive, 'No more packets left for you!'
+
+	assert not self._has_address_recieved_this_packet_drop(self.packet_drops[_pdi].recipients_addresses, msg.sender), 'You have already received!'
+
 
 	# if self.packet_drops[_slug].number_of_recipients_to_receive - self.packet_drops[_slug].number_of_recipients_has_received == 1:
 	# 	value: uint256 = self.packet_drops[_slug].amount_wei - self.packet_drops[_slug].amount_wei_sent_to_recipients
@@ -162,12 +185,12 @@ def receive_packet_drop(
 	# else:
 
 
-	a: uint256 = self.packet_drops[pdi].amount_wei
-	b: uint256 = self.packet_drops[pdi].amount_wei_sent_to_recipients
+	a: uint256 = self.packet_drops[_pdi].amount_wei
+	b: uint256 = self.packet_drops[_pdi].amount_wei_sent_to_recipients
 	# c: int128 = self.packet_drops[_slug].number_of_recipients_to_receive
 	# d: int128 = self.packet_drops[_slug].number_of_recipients_has_received
 	# value: uint256 = ((a - b) * 0.6)
-	value: uint256 = ((a - b) / 2) * 3
+	value: uint256 = ((a - b) / 3) * 2
 
 
 	response: Bytes[32] = raw_call(
@@ -184,11 +207,13 @@ def receive_packet_drop(
 		assert convert(response, bool)
 
 
-	self.packet_drops[pdi].recipients_txns[self.packet_drops[pdi].number_of_recipients_has_received] = convert(response, bytes32)
+	self.packet_drops[_pdi].recipients_addresses[self.packet_drops[_pdi].number_of_recipients_has_received] = msg.sender
+	self.packet_drops[_pdi].recipients_values[self.packet_drops[_pdi].number_of_recipients_has_received] = value
+	self.packet_drops[_pdi].recipients_block_numbers[self.packet_drops[_pdi].number_of_recipients_has_received] = block.number
 
 
-	self.packet_drops[pdi].number_of_recipients_has_received += 1
-	self.packet_drops[pdi].amount_wei_sent_to_recipients += value
+	self.packet_drops[_pdi].number_of_recipients_has_received += 1
+	self.packet_drops[_pdi].amount_wei_sent_to_recipients += value
 
 
 	return True
