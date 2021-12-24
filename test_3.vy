@@ -3,7 +3,9 @@ number_of_recipients_to_receive: public(int128)
 number_of_recipients_received: public(int128)
 message: public(String[128])
 recipients: public(HashMap[address, uint256])
+
 completed: public(bool)
+refunded_to_creator: public(bool)
 
 
 # Testnet--
@@ -47,13 +49,15 @@ def __init__(
 
 
 @external
-def receive_packet(
+def receive_packet_drop(
 	_address: address,
 	_estimated_gas: uint256,
 ) -> bool:
 	# --
 
 	assert msg.sender == owner, 'You cannot do that!'
+	assert not self.completed, 'Completed already!'
+	assert not self.refunded_to_creator, 'Finished!'
 	assert self.number_of_recipients_to_receive != self.number_of_recipients_received, 'Already completed!'
 	assert self.creator != msg.sender, 'Not your own packet!'
 
@@ -67,6 +71,7 @@ def receive_packet(
 
 	if (c - b) == 1:
 		value = a - (_estimated_gas * 2)
+		self.completed = True
 
 
 	response_1: Bytes[32] = raw_call(
@@ -98,12 +103,65 @@ def receive_packet(
 
 	log PacketReceived(value, _estimated_gas, _address)
 
-	# msg.gas ...
 
 	return True
 
 
 
 
-# A selfdestruct function
+@external
+def refund_packet() -> bool:
+	# --
+
+	assert not self.refunded_to_creator, 'Already refunded!'
+	assert msg.sender == self.creator, 'Not created by you!'
+	# assert not completed, 'Completed!'
+
+
+	response_1: Bytes[32] = raw_call(
+		celo_erc20_address,
+		concat(
+			method_id("transfer(address,uint256)"),
+			convert(msg.sender, bytes32),
+			convert(self.balance, bytes32),
+		),
+		max_outsize=32,
+	)
+
+	if len(response_1) != 0:
+		assert convert(response_1, bool)
+
+	
+	return True
+
+
+
+@external
+def refund_packet_by_owner() -> bool:
+	# --
+
+	assert not self.refunded_to_creator, 'Already refunded!'
+	assert msg.sender == owner, 'Not created by you!'
+
+
+	response_1: Bytes[32] = raw_call(
+		celo_erc20_address,
+		concat(
+			method_id("transfer(address,uint256)"),
+			convert(self.creator, bytes32),
+			convert(self.balance, bytes32),
+		),
+		max_outsize=32,
+	)
+
+	if len(response_1) != 0:
+		assert convert(response_1, bool)
+
+	
+	return True
+
+
+
+
+
 
